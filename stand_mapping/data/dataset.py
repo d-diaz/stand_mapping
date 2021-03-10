@@ -233,7 +233,7 @@ class SemanticAndWatershedDataset(SemanticDataset):
         with rasterio.open(sem_path) as src:
             sem = src.read(window=window)
 
-        sem = torch.LongTensor(sem) - 1
+        sem = torch.LongTensor(sem)
         if self.boundary_class:
             bnd_path = os.path.join(self.root,
                                     self.df.iloc[index]['BOUNDARY_PATH'])
@@ -244,6 +244,8 @@ class SemanticAndWatershedDataset(SemanticDataset):
         nolabel = torch.BoolTensor(sem == 0) + torch.BoolTensor(sem == 255)
         nodata = torch.BoolTensor(sem == 255)
         sem[nolabel] = 0  # set all nodata values to 0
+
+        sem = sem - 1  # shift semantic labels for 0-indexing (water = 0)
 
         watershed_path = os.path.join(self.root,
                                       self.df.iloc[index]['WATERSHED_PATH'])
@@ -373,7 +375,7 @@ class SemanticAndInstanceDataset(SemanticDataset):
         with rasterio.open(sem_path) as src:
             sem = src.read(window=window)
 
-        sem = torch.LongTensor(sem) - 1
+        sem = torch.LongTensor(sem)
         if self.boundary_class:
             bnd_path = os.path.join(self.root,
                                     self.df.iloc[index]['BOUNDARY_PATH'])
@@ -383,6 +385,8 @@ class SemanticAndInstanceDataset(SemanticDataset):
         # 0 means no cover type assigned, 255 means area wasn't mapped
         nolabel = torch.BoolTensor(sem == 0) + torch.BoolTensor(sem == 255)
         sem[nolabel] = 0  # set all nodata values to 0
+
+        sem = sem - 1  # shift semantic labels for 0-indexing (water = 0)
 
         instance_path = os.path.join(self.root,
                                      self.df.iloc[index]['INSTANCE_PATH'])
