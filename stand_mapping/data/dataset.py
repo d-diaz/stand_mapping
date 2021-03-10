@@ -100,6 +100,7 @@ class SemanticDataset(Dataset):
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
                                                 self.raw_chip_size)
+                        np.random.seed()
                     img = src.read(window=window)
                     inputs.append(img)
 
@@ -122,7 +123,7 @@ class SemanticDataset(Dataset):
         nolabel = torch.BoolTensor(sem == 0) + torch.BoolTensor(sem == 255)
         sem[nolabel] = 0  # set all nodata values to 0
 
-        target = sem
+        target = sem - 1  # shift semantic labels for 0-indexing (water = 0)
 
         if self.transform:
             input = self.transform(input)
@@ -220,6 +221,7 @@ class SemanticAndWatershedDataset(SemanticDataset):
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
                                                 self.raw_chip_size)
+                        np.random.seed()
                     img = src.read(window=window)
                     inputs.append(img)
 
@@ -231,7 +233,7 @@ class SemanticAndWatershedDataset(SemanticDataset):
         with rasterio.open(sem_path) as src:
             sem = src.read(window=window)
 
-        sem = torch.LongTensor(sem)
+        sem = torch.LongTensor(sem) - 1
         if self.boundary_class:
             bnd_path = os.path.join(self.root,
                                     self.df.iloc[index]['BOUNDARY_PATH'])
@@ -359,6 +361,7 @@ class SemanticAndInstanceDataset(SemanticDataset):
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
                                                 self.raw_chip_size)
+                        np.random.seed()  # unset random seed
                     img = src.read(window=window)
                     inputs.append(img)
 
@@ -370,7 +373,7 @@ class SemanticAndInstanceDataset(SemanticDataset):
         with rasterio.open(sem_path) as src:
             sem = src.read(window=window)
 
-        sem = torch.LongTensor(sem)
+        sem = torch.LongTensor(sem) - 1
         if self.boundary_class:
             bnd_path = os.path.join(self.root,
                                     self.df.iloc[index]['BOUNDARY_PATH'])
