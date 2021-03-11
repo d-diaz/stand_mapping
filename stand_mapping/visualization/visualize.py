@@ -63,7 +63,8 @@ def colorize_landcover(img, soft=False):
     soft : bool
       whether to treat the input image as a hard classification or a soft
       (probabilistic) prediction. If soft, colors are mixed according to the
-      predicted probability of each class.
+      predicted probability of each class. The first class expected is water
+      (i.e., no background/unlabeled class probability).
 
     Returns
     -------
@@ -88,9 +89,9 @@ def colorize_landcover(img, soft=False):
     else:  # we're given the probability of each class for each pixel
         num_classes = img.shape[-1]
         for i in range(num_classes):
-            cover_colors[:, :, 0] += img[:, :, i] * COLOR_MAP[i][0]  # R
-            cover_colors[:, :, 1] += img[:, :, i] * COLOR_MAP[i][1]  # G
-            cover_colors[:, :, 2] += img[:, :, i] * COLOR_MAP[i][2]  # B
+            cover_colors[:, :, 0] += img[:, :, i] * COLOR_MAP[i + 1][0]  # R
+            cover_colors[:, :, 1] += img[:, :, i] * COLOR_MAP[i + 1][1]  # G
+            cover_colors[:, :, 2] += img[:, :, i] * COLOR_MAP[i + 1][2]  # B
 
     land_color = (cover_colors * 255).astype(np.uint8)
 
