@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 import numpy as np
 from affine import Affine
+import torch
 
 
 def draw_contours(dem, transform=None, interval=10, ax=None, **kwargs):
@@ -96,3 +97,32 @@ def colorize_landcover(img, soft=False):
     land_color = (cover_colors * 255).astype(np.uint8)
 
     return land_color
+
+
+def colorize_landcover_batch(batch, soft=False):
+    """Applies `recolor_landcover` to a batch of images (tensors).
+
+    Parameters
+    ----------
+    image_batch : torch.tensor, shape (B,C,H,W)
+      batch of images
+    soft : bool
+      passed to `colorize_landcover`, indicates whether images represent
+      predicted land cover classes (soft=False) or probabilities of land cover
+      classes (soft=True)
+
+    Returns
+    -------
+    stack : torch.tensor, shape (B,3,H,W)
+      colorized batch of images
+    """
+    if soft:
+        batch = batch.permute(0, 2, 3, 1)
+    else:
+        batch = batch.squeeze()
+
+    colorized = [torch.from_numpy(colorize_landcover(img.numpy(), soft=soft))
+                 for img in batch]
+    stacked = torch.stack(colorized, axis=0).permute(0, 3, 1, 2)
+
+    return stacked
