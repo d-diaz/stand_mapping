@@ -93,9 +93,9 @@ class SemanticDataset(Dataset):
                 with rasterio.open(path) as src:
                     if window is None:
                         height, width = src.shape
-                        col_off =  randint(0, width - self.raw_chip_size,
+                        col_off =  randint.rvs(0, width - self.raw_chip_size,
                                            random_state=self.random_state)
-                        row_off = randint(0, height - self.raw_chip_size,
+                        row_off = randint.rvs(0, height - self.raw_chip_size,
                                           random_state=self.random_state)
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
@@ -210,9 +210,9 @@ class SemanticAndWatershedDataset(SemanticDataset):
                 with rasterio.open(path) as src:
                     if window is None:
                         height, width = src.shape
-                        col_off =  randint(0, width - self.raw_chip_size,
+                        col_off =  randint.rvs(0, width - self.raw_chip_size,
                                            random_state=self.random_state)
-                        row_off = randint(0, height - self.raw_chip_size,
+                        row_off = randint.rvs(0, height - self.raw_chip_size,
                                           random_state=self.random_state)
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
@@ -350,9 +350,9 @@ class SemanticAndInstanceDataset(SemanticDataset):
                 with rasterio.open(path) as src:
                     if window is None:
                         height, width = src.shape
-                        col_off =  randint(0, width - self.raw_chip_size,
+                        col_off =  randint.rvs(0, width - self.raw_chip_size,
                                            random_state=self.random_state)
-                        row_off = randint(0, height - self.raw_chip_size,
+                        row_off = randint.rvs(0, height - self.raw_chip_size,
                                           random_state=self.random_state)
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
