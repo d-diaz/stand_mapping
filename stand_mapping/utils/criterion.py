@@ -1,5 +1,5 @@
 """
-The code is from 
+The code is from
 https://github.com/nyoki-mtl/pytorch-discriminative-loss
 This is the implementation of following paper:
 https://arxiv.org/pdf/1802.05591.pdf
@@ -7,9 +7,9 @@ This implementation is based on following code:
 https://github.com/Wizaron/instance-segmentation-pytorch
 """
 
-
-from torch.nn.modules.loss import _Loss
 import torch
+import torch.nn.functional as F
+from torch.nn.modules.loss import _Loss, _WeightedLoss
 
 
 class DiscriminativeLoss(_Loss):
@@ -52,7 +52,8 @@ class DiscriminativeLoss(_Loss):
         max_n_clusters = target.size(1)
 
         # bs, n_features, max_n_clusters, n_loc
-        input = input.unsqueeze(2).expand(bs, n_features, max_n_clusters, n_loc)
+        input = input.unsqueeze(2).expand(bs, n_features,
+                                          max_n_clusters, n_loc)
         # bs, 1, max_n_clusters, n_loc
         target = target.unsqueeze(1)
         # bs, n_features, max_n_clusters, n_loc
@@ -87,12 +88,14 @@ class DiscriminativeLoss(_Loss):
         max_n_clusters = target.size(1)
 
         # bs, n_features, max_n_clusters, n_loc
-        c_means = c_means.unsqueeze(3).expand(bs, n_features, max_n_clusters, n_loc)
+        c_means = c_means.unsqueeze(3).expand(bs, n_features,
+                                              max_n_clusters, n_loc)
         # bs, n_features, max_n_clusters, n_loc
-        input = input.unsqueeze(2).expand(bs, n_features, max_n_clusters, n_loc)
+        input = input.unsqueeze(2).expand(bs, n_features,
+                                          max_n_clusters, n_loc)
         # bs, max_n_clusters, n_loc
-        var = (torch.clamp(torch.norm((input - c_means), self.norm, 1) -
-                           self.delta_var, min=0) ** 2) * target
+        var = (torch.clamp(torch.norm((input - c_means), self.norm, 1)
+               - self.delta_var, min=0) ** 2) * target
 
         var_term = 0
         for i in range(bs):
@@ -120,14 +123,18 @@ class DiscriminativeLoss(_Loss):
             mean_sample = c_means[i, :, :n_clusters[i]]
 
             # n_features, n_clusters, n_clusters
-            means_a = mean_sample.unsqueeze(2).expand(n_features, n_clusters[i], n_clusters[i])
+            means_a = (mean_sample
+                       .unsqueeze(2)
+                       .expand(n_features, n_clusters[i], n_clusters[i]))
             means_b = means_a.permute(0, 2, 1)
             diff = means_a - means_b
 
             margin = 2 * self.delta_dist * (1.0 - torch.eye(n_clusters[i]))
             if self.usegpu:
                 margin = margin.cuda()
-            c_dist = torch.sum(torch.clamp(margin - torch.norm(diff, self.norm, 0), min=0) ** 2)
+            c_dist = torch.sum(
+                         torch.clamp(margin - torch.norm(
+                             diff, self.norm, 0), min=0) ** 2)
             dist_term += c_dist / (2 * n_clusters[i] * (n_clusters[i] - 1))
         dist_term /= bs
 
@@ -145,3 +152,61 @@ class DiscriminativeLoss(_Loss):
 
         return reg_term
 
+
+class MaskedFocalLoss(_Loss):
+    """Focal Loss originally defined for binary classification as:
+         CE(p_t) = -log(p_t)
+         FL(p_t) = -alpha_t * (1 - p_t)**gamma * log(p_t)
+       by:
+         T.-Y. Lin, P. Goyal, R. Girshick, K. He, and P. Dollár (2018).
+         “Focal Loss for Dense Object Detection,” arXiv:1708.02002
+         Accessed: Mar. 15, 2021. Available: http://arxiv.org/abs/1708.02002.
+    """
+
+    def __init__(self, alpha=1, gamma=2, reduction='mean'):
+        super().__init__(reduction=reduction)
+        self.alpha = alpha
+        self.gamma = gamma
+
+
+    def __call__(self, input, target, nodata=None):
+        if nodata is not None:
+            input = input[~nodata]
+            target = target[~nodata]
+        ce_loss = F.cross_entropy(input, target,
+                                  reduction='none',
+                                  weight=self.weight)
+        pt = torch.exp(-ce_loss)
+        focal_loss = self.alpha * (1 - pt)**self.gamma * ce_loss
+
+        if self.reduction == 'mean':
+            focal_loss = focal_loss.mean()
+        elif self.reduction == 'sum':
+            focal_loss = focal_loss.sum()
+
+        return focal_loss
+
+
+class MaskedCrossEntropyLoss(_WeightedLoss):
+    """Cross Entropy Loss extended to accept a nodata mask. Nodata is expected
+    to be a boolean mask where nodata values are indicate by True and valid
+    data values are indicated by False.
+    """
+
+    def __init__(self, weight=None, reduction='mean'):
+        super().__init__(weight, reduction=reduction)
+        self.weight = weight
+
+    def __call__(self, input, target, nodata=None):
+        if nodata is not None:
+            input = input[~nodata]
+            target = target[~nodata]
+
+        ce_loss = F.cross_entropy(input, target,
+                                  reduction=self.reduction,
+                                  weight=self.weight)
+
+        if self.reduction == 'none' and self.weight is not None:
+            ce_loss = ce_loss.sum() / self.weights[target].sum()
+
+        return ce_loss

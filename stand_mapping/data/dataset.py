@@ -4,12 +4,13 @@ import rasterio
 from rasterio import windows
 import torch
 from torch.utils.data import Dataset
+from scipy.stats import randint
 
 
 class SemanticDataset(Dataset):
     def __init__(self, root, dataframe, raw_chip_size,
                  transform=None, target_transform=None,
-                 use_layers=None, random_seed=None,
+                 use_layers=None, random_state=None,
                  boundary_class=False):
         """Initialize a SemanticDataset for semantic segmentation.
 
@@ -47,7 +48,7 @@ class SemanticDataset(Dataset):
         self.layer_types = [col.split('_PATH')[0].lower() for col in
                             self.path_cols]
         self.boundary_class = boundary_class
-        self.seed = random_seed
+        self.random_state = random_state
 
         if use_layers is None:
             self.use_layers = {layer_type: {'use': False, 'col': path_col} for
@@ -92,15 +93,13 @@ class SemanticDataset(Dataset):
                 with rasterio.open(path) as src:
                     if window is None:
                         height, width = src.shape
-                        np.random.seed(self.seed)
-                        col_off = \
-                            np.random.randint(0, width - self.raw_chip_size)
-                        row_off = \
-                            np.random.randint(0, height - self.raw_chip_size)
+                        col_off =  randint(0, width - self.raw_chip_size,
+                                           random_state=self.random_state)
+                        row_off = randint(0, height - self.raw_chip_size,
+                                          random_state=self.random_state)
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
                                                 self.raw_chip_size)
-                        np.random.seed()
                     img = src.read(window=window)
                     inputs.append(img)
 
@@ -211,17 +210,13 @@ class SemanticAndWatershedDataset(SemanticDataset):
                 with rasterio.open(path) as src:
                     if window is None:
                         height, width = src.shape
-                        # choose a random window from the first layer
-                        # that will stay fixed for all subsequent layers
-                        np.random.seed(self.seed)
-                        col_off = \
-                            np.random.randint(0, width - self.raw_chip_size)
-                        row_off = \
-                            np.random.randint(0, height - self.raw_chip_size)
+                        col_off =  randint(0, width - self.raw_chip_size,
+                                           random_state=self.random_state)
+                        row_off = randint(0, height - self.raw_chip_size,
+                                          random_state=self.random_state)
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
                                                 self.raw_chip_size)
-                        np.random.seed()
                     img = src.read(window=window)
                     inputs.append(img)
 
@@ -355,15 +350,13 @@ class SemanticAndInstanceDataset(SemanticDataset):
                 with rasterio.open(path) as src:
                     if window is None:
                         height, width = src.shape
-                        np.random.seed(self.seed)
-                        col_off = \
-                            np.random.randint(0, width - self.raw_chip_size)
-                        row_off = \
-                            np.random.randint(0, height - self.raw_chip_size)
+                        col_off =  randint(0, width - self.raw_chip_size,
+                                           random_state=self.random_state)
+                        row_off = randint(0, height - self.raw_chip_size,
+                                          random_state=self.random_state)
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
                                                 self.raw_chip_size)
-                        np.random.seed()  # unset random seed
                     img = src.read(window=window)
                     inputs.append(img)
 
