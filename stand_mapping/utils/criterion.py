@@ -154,30 +154,34 @@ class DiscriminativeLoss(_Loss):
 
 
 class MaskedFocalLoss(_Loss):
-    """Focal Loss originally defined for binary classification as:
-         CE(p_t) = -log(p_t)
-         FL(p_t) = -alpha_t * (1 - p_t)**gamma * log(p_t)
-       by:
-         T.-Y. Lin, P. Goyal, R. Girshick, K. He, and P. Dollár (2018).
-         “Focal Loss for Dense Object Detection,” arXiv:1708.02002
-         Accessed: Mar. 15, 2021. Available: http://arxiv.org/abs/1708.02002.
+    """Focal Loss extended to accept a nodata mask.
+
+    Focal Loss (FL) was originally defined as a modification of cross entropy
+    (CE) loss for binary classification as:
+      CE(p_t) = -log(p_t)
+      FL(p_t) = (1 - p_t)**gamma * log(p_t)
+
+     This formulation for binary classification was described first by:
+       T.-Y. Lin, P. Goyal, R. Girshick, K. He, and P. Dollár (2018).
+       “Focal Loss for Dense Object Detection,” arXiv:1708.02002
+       Accessed: Mar. 15, 2021. Available: http://arxiv.org/abs/1708.02002.
     """
 
-    def __init__(self, alpha=1, gamma=2, reduction='mean'):
-        super().__init__(reduction=reduction)
-        self.alpha = alpha
+    def __init__(self, gamma=2, reduction='mean'):
+        super().__init__(self, reduction=reduction)
         self.gamma = gamma
-
+        self.reduciton = reduction
 
     def __call__(self, input, target, nodata=None):
-        if nodata is not None:
-            input = input[~nodata]
-            target = target[~nodata]
         ce_loss = F.cross_entropy(input, target,
                                   reduction='none',
                                   weight=self.weight)
+
         pt = torch.exp(-ce_loss)
-        focal_loss = self.alpha * (1 - pt)**self.gamma * ce_loss
+        focal_loss = (1 - pt)**self.gamma * ce_loss
+
+        if nodata is not None:
+            focal_loss = focal_loss[~nodata]
 
         if self.reduction == 'mean':
             focal_loss = focal_loss.mean()
@@ -196,17 +200,23 @@ class MaskedCrossEntropyLoss(_WeightedLoss):
     def __init__(self, weight=None, reduction='mean'):
         super().__init__(weight, reduction=reduction)
         self.weight = weight
+        self.reduction = reduction
 
     def __call__(self, input, target, nodata=None):
-        if nodata is not None:
-            input = input[~nodata]
-            target = target[~nodata]
-
         ce_loss = F.cross_entropy(input, target,
-                                  reduction=self.reduction,
+                                  reduction='none',
                                   weight=self.weight)
 
-        if self.reduction == 'none' and self.weight is not None:
-            ce_loss = ce_loss.sum() / self.weights[target].sum()
+        if nodata is not None:
+            ce_loss = ce_loss[~nodata]
+            target = target[~nodata]
+
+        if self.reduction == 'mean':
+            if self.weight is not None:
+                ce_loss = ce_loss.sum() / self.weight[target].sum()
+            else:
+                ce_loss = ce_loss.mean()
+        elif self.reduction == 'sum':
+            ce_loss = ce_loss.sum()
 
         return ce_loss
