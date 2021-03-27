@@ -63,7 +63,7 @@ class SemanticDataset(Dataset):
                     raise ValueError(f'Unrecognized layer type: {layer_type}')
                 else:
                     self.use_layers[layer_type]['col'] = layer_type.upper() + \
-                                                         '_PATH'
+                        '_PATH'
 
     def __getitem__(self, index):
         """Fetch a sample from the dataset.
@@ -93,10 +93,10 @@ class SemanticDataset(Dataset):
                 with rasterio.open(path) as src:
                     if window is None:
                         height, width = src.shape
-                        col_off =  randint.rvs(0, width - self.raw_chip_size,
-                                           random_state=self.random_state)
+                        col_off = randint.rvs(0, width - self.raw_chip_size,
+                                              random_state=self.random_state)
                         row_off = randint.rvs(0, height - self.raw_chip_size,
-                                          random_state=self.random_state)
+                                              random_state=self.random_state)
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
                                                 self.raw_chip_size)
@@ -210,10 +210,10 @@ class SemanticAndWatershedDataset(SemanticDataset):
                 with rasterio.open(path) as src:
                     if window is None:
                         height, width = src.shape
-                        col_off =  randint.rvs(0, width - self.raw_chip_size,
-                                           random_state=self.random_state)
+                        col_off = randint.rvs(0, width - self.raw_chip_size,
+                                              random_state=self.random_state)
                         row_off = randint.rvs(0, height - self.raw_chip_size,
-                                          random_state=self.random_state)
+                                              random_state=self.random_state)
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
                                                 self.raw_chip_size)
@@ -312,12 +312,12 @@ class SemanticAndInstanceDataset(SemanticDataset):
             boundary_class=boundary_class)
 
         self.thing_classes = {
-                'water': False,
-                'forest': True,
-                'field': False,
-                'barren': False,
-                'developed': False,
-                }
+            'water': False,
+            'forest': True,
+            'field': False,
+            'barren': False,
+            'developed': False,
+        }
 
         if thing_classes is not None:
             self.thing_classes.update(thing_classes)
@@ -350,10 +350,10 @@ class SemanticAndInstanceDataset(SemanticDataset):
                 with rasterio.open(path) as src:
                     if window is None:
                         height, width = src.shape
-                        col_off =  randint.rvs(0, width - self.raw_chip_size,
-                                           random_state=self.random_state)
+                        col_off = randint.rvs(0, width - self.raw_chip_size,
+                                              random_state=self.random_state)
                         row_off = randint.rvs(0, height - self.raw_chip_size,
-                                          random_state=self.random_state)
+                                              random_state=self.random_state)
                         window = windows.Window(col_off, row_off,
                                                 self.raw_chip_size,
                                                 self.raw_chip_size)

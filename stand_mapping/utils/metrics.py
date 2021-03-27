@@ -1,4 +1,6 @@
 import numpy as np
+import torch
+import torch.nn.functional as F
 
 
 def batchify(targets, predictions, nodata, score_func,
@@ -33,3 +35,157 @@ def batchify(targets, predictions, nodata, score_func,
         results = tuple(np.array(results).mean(axis=0))
 
     return results
+
+
+def masked_accuracy(input, target, nodata=None, reduction='mean'):
+    """Calculates classification accuracy for a batch of images.
+
+    Parameters
+    ----------
+    input : tensor, shape (B, 1, H, W)
+      batch of images with predicted classes
+    target : tensor, shape (B, 1, H, W)
+      batch of images with target classes
+    nodata : tensor, shape (B, 1, H, W), optional
+      batch of boolean images indicating areas to be excluded from scoring
+
+    Returns
+    -------
+    score : tensor, shape (B,)
+      average accuracy among valid (not nodata) pixels for each of B images
+    """
+    correct = (input == target)
+    support = torch.ones(target.shape)
+
+    if nodata is not None:
+        if nodata.dtype != torch.bool:
+            nodata = nodata > 0
+        correct *= ~nodata
+        support *= ~nodata
+
+    score = correct.sum(dim=(1, 2, 3)) / support.sum(dim=(1, 2, 3))
+
+    if reduction == 'mean':
+        score = score.mean()
+    elif reduction == 'sum':
+        score = score.sum()
+
+    return score
+
+
+def masked_precision(input, target, nodata=None):
+    """Calculates classification precision for a batch of images.
+
+    Parameters
+    ----------
+    input : tensor, shape (B, 1, H, W)
+      batch of images with predicted classes
+    target : tensor, shape (B, 1, H, W)
+      batch of images with target classes
+    nodata : tensor, shape (B, 1, H, W), optional
+      batch of boolean images indicating areas to be excluded from scoring
+    """
+    correct = (input == target)
+    support = torch.ones(target.shape)
+
+    if nodata is not None:
+        if nodata.dtype != torch.bool:
+            nodata = nodata > 0
+        correct *= ~nodata
+        support *= ~nodata
+
+    score = correct.sum(dim=(1, 2, 3)) / support.sum(dim=(1, 2, 3))
+    return score
+
+
+def masked_classification_stats(input, target, nodata=None, num_classes=5):
+    """Calculates rates of true and false positives and negatives with
+    optional nodata mask.
+
+    Parameters
+    input : tensor, shape (B, 1, H, W)
+      batch of images with predicted classes
+    target : tensor, shape (B, 1, H, W)
+      batch of images with target classes
+    nodata : tensor, shape (B, 1, H, W), optional
+      batch of boolean images indicating areas to be excluded from scoring
+
+    Returns
+    -------
+    stats : 5-tuple of tensors, each shape (B, N)
+      ratio of true positives, true negatives, false positives, and false
+      negatives, and support for each of N classes in each of B images in batch
+    """
+    # convert input and target with shape (B,N,H,W)
+    B, C, H, W = input.shape
+    input_onehot = torch.zeros((B, num_classes, H, W))
+    target_onehot = torch.zeros((B, num_classes, H, W))
+    input_onehot.scatter_(1, input.data, 1)
+    target_onehot.scatter_(1, target.data, 1)
+    valid_pixels = H*W
+
+    tp = (input_onehot == target_onehot) * target_onehot
+    tn = (input_onehot == target_onehot) * (target_onehot == 0)
+    fp = (input_onehot > target_onehot)
+    fn = (input_onehot < target_onehot)
+
+    if nodata is not None:
+        if nodata.dtype != torch.bool:
+            nodata = nodata > 0
+        tp *= ~nodata
+        tn *= ~nodata
+        fp *= ~nodata
+        fn *= ~nodata
+        valid_pixels = (~nodata).sum(dim=(1, 2, 3))
+
+    tp = tp.sum(dim=(2, 3)) / valid_pixels
+    tn = tn.sum(dim=(2, 3)) / valid_pixels
+    fp = fp.sum(dim=(2, 3)) / valid_pixels
+    fn = fn.sum(dim=(2, 3)) / valid_pixels
+    support = target_onehot.sum(dim=(2, 3))
+
+    return tp, tn, fp, fn, support
+
+
+def masked_dice_coef(input, target, nodata=None, eps=1e-8):
+    """Calculates the Sorensen-Dice Coefficient with the option of including a
+    nodata mask.
+
+    Parameters
+    ----------
+    input : tensor, shape (B, N, H, W)
+      logits (unnormalized predictions) for a batch, will be converted to class
+      probabilities using softmax.
+    target : tensor, shape (B, 1, H, W)
+      batch of semantic segmentation target labels.
+    nodata : tensor, shape (B, 1, H, W), optional
+      boolean or binary tensor where values of True or 1 indicate areas that
+      should be excluded from scoring (e.g., where no label was annotated)
+    eps : float
+      a small value added to denominator of Dice Coefficient for numerical
+      stability (prevents divide by zero)
+
+    Returns
+    -------
+    score : tensor, shape (B,)
+      Dice Coefficient for each image in batch
+    """
+    # compute softmax over the classes dimension
+    soft = F.softmax(input, dim=1)
+
+    # convert target to one-hot, then scatter to shape (B,N,H,W)
+    one_hot = torch.zeros(soft.shape)
+    one_hot.scatter_(1, target.data, 1)  # works in-place
+
+    if nodata is not None:
+        if nodata.dtype != nodata.bool:
+            nodata = nodata > 0  # cast to bool
+        soft *= ~nodata
+        one_hot *= ~nodata
+
+    inter = torch.sum(soft * one_hot, dim=(1, 2, 3))
+    card = torch.sum(soft + one_hot, dim=(1, 2, 3))
+
+    score = 2 * inter / (card + eps)
+
+    return score
