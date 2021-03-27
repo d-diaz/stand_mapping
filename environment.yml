@@ -5,22 +5,20 @@ channels:
   - pytorch
 
 dependencies:
-  - albumentations
   - beautifulsoup4
   - descartes
   - earthengine-api
   - geopandas
   - ipywidgets
   - jupyterlab
+  - kornia
   - matplotlib
   - neptune-client
   - pip
-  - pystac
   - python
   - python-dotenv
   - pytorch
   - rasterio
-  - rioxarray
   - scikit-image
   - scikit-learn
   - scikit-optimize
