@@ -118,16 +118,15 @@ def masked_classification_stats(input, target, nodata=None, num_classes=5):
     """
     # convert input and target with shape (B,N,H,W)
     B, C, H, W = input.shape
-    input_onehot = torch.zeros((B, num_classes, H, W))
-    target_onehot = torch.zeros((B, num_classes, H, W))
-    input_onehot.scatter_(1, input.data, 1)
-    target_onehot.scatter_(1, target.data, 1)
+    hard_pred = torch.argmax(F.softmax(input, dim=1), axis=1)
+    input_onehot = F.one_hot(hard_pred, num_classes=num_classes).permute(0,3,1,2)
+    targ_onehot = F.one_hot(target[:,0,:,:].clip(0,), num_classes=num_classes).permute(0,3,1,2)
     valid_pixels = H*W
 
-    tp = (input_onehot == target_onehot) * target_onehot
-    tn = (input_onehot == target_onehot) * (target_onehot == 0)
-    fp = (input_onehot > target_onehot)
-    fn = (input_onehot < target_onehot)
+    tp = (input_onehot == targ_onehot) * targ_onehot
+    tn = (input_onehot == targ_onehot) * (targ_onehot == 0)
+    fp = (input_onehot > targ_onehot)
+    fn = (input_onehot < targ_onehot)
 
     if nodata is not None:
         if nodata.dtype != torch.bool:
@@ -136,18 +135,22 @@ def masked_classification_stats(input, target, nodata=None, num_classes=5):
         tn *= ~nodata
         fp *= ~nodata
         fn *= ~nodata
-        valid_pixels = (~nodata).sum(dim=(1, 2, 3))
+        valid_pixels = (~nodata).sum(dim=(1, 2, 3)).unsqueeze(-1)
 
     tp = tp.sum(dim=(2, 3)) / valid_pixels
     tn = tn.sum(dim=(2, 3)) / valid_pixels
     fp = fp.sum(dim=(2, 3)) / valid_pixels
     fn = fn.sum(dim=(2, 3)) / valid_pixels
-    support = target_onehot.sum(dim=(2, 3))
+    support = targ_onehot.sum(dim=(2, 3))
 
-    return tp, tn, fp, fn, support
+    return (torch.nan_to_num(tp),  # replaces NaNs with zero
+            torch.nan_to_num(tn),  # usually where support is 0
+            torch.nan_to_num(fp),
+            torch.nan_to_num(fn),
+            torch.nan_to_num(support))
 
 
-def masked_dice_coef(input, target, nodata=None, eps=1e-8):
+def masked_dice_coef(input, target, nodata=None, num_classes=5, eps=1e-8):
     """Calculates the Sorensen-Dice Coefficient with the option of including a
     nodata mask.
 
@@ -171,11 +174,10 @@ def masked_dice_coef(input, target, nodata=None, eps=1e-8):
       Dice Coefficient for each image in batch
     """
     # compute softmax over the classes dimension
-    soft = F.softmax(input, dim=1)
+    pred = torch.argmax(F.softmax(input, dim=1), axis=1)
 
     # convert target to one-hot, then scatter to shape (B,N,H,W)
-    one_hot = torch.zeros(soft.shape)
-    one_hot.scatter_(1, target.data, 1)  # works in-place
+    one_hot = F.one_hot(target[:,0,:,:].clip(0,), num_classes=num_classes).permute(0,3,1,2)
 
     if nodata is not None:
         if nodata.dtype != nodata.bool:

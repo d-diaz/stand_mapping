@@ -1,12 +1,3 @@
-"""
-The code is from
-https://github.com/nyoki-mtl/pytorch-discriminative-loss
-This is the implementation of following paper:
-https://arxiv.org/pdf/1802.05591.pdf
-This implementation is based on following code:
-https://github.com/Wizaron/instance-segmentation-pytorch
-"""
-
 import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss, _WeightedLoss
@@ -15,6 +6,14 @@ from .metrics import masked_dice_coef
 
 
 class DiscriminativeLoss(_Loss):
+    """
+    The code is from
+    https://github.com/nyoki-mtl/pytorch-discriminative-loss
+    This is the implementation of following paper:
+    https://arxiv.org/pdf/1802.05591.pdf
+    This implementation is based on following code:
+    https://github.com/Wizaron/instance-segmentation-pytorch
+    """
     def __init__(self, delta_var=0.5, delta_dist=1.5,
                  norm=2, alpha=1.0, beta=1.0, gamma=0.001,
                  usegpu=True, reduction='mean'):
