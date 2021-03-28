@@ -174,10 +174,11 @@ def masked_dice_coef(input, target, nodata=None, num_classes=5, eps=1e-8):
       Dice Coefficient for each image in batch
     """
     # compute softmax over the classes dimension
-    pred = torch.argmax(F.softmax(input, dim=1), axis=1)
+    soft = torch.argmax(F.softmax(input, dim=1), axis=1)
 
     # convert target to one-hot, then scatter to shape (B,N,H,W)
-    one_hot = F.one_hot(target[:,0,:,:].clip(0,), num_classes=num_classes).permute(0,3,1,2)
+    one_hot = F.one_hot(target[:,0,:,:].clip(0,),
+                        num_classes=num_classes).permute(0,3,1,2)
 
     if nodata is not None:
         if nodata.dtype != nodata.bool:
