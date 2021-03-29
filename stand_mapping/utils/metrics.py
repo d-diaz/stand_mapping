@@ -150,7 +150,7 @@ def masked_classification_stats(input, target, nodata=None, num_classes=5):
             torch.nan_to_num(support))
 
 
-def masked_dice_coef(input, target, nodata=None, num_classes=5, eps=1e-8):
+def masked_dice_coef(input, target, nodata=None, num_classes=5, eps=1e-23):
     """Calculates the Sorensen-Dice Coefficient with the option of including a
     nodata mask.
 
@@ -174,7 +174,7 @@ def masked_dice_coef(input, target, nodata=None, num_classes=5, eps=1e-8):
       Dice Coefficient for each image in batch
     """
     # compute softmax over the classes dimension
-    soft = torch.argmax(F.softmax(input, dim=1), axis=1)
+    soft = F.softmax(input, dim=1)
 
     # convert target to one-hot, then scatter to shape (B,N,H,W)
     one_hot = F.one_hot(target[:,0,:,:].clip(0,),
