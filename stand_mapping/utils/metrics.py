@@ -183,8 +183,8 @@ def masked_dice_coef(input, target, nodata=None, num_classes=5, eps=1e-23):
     if nodata is not None:
         if nodata.dtype != nodata.bool:
             nodata = nodata > 0  # cast to bool
-        soft *= ~nodata
-        one_hot *= ~nodata
+        soft = soft * ~nodata
+        one_hot = one_hot * ~nodata
 
     inter = torch.sum(soft * one_hot, dim=(1, 2, 3))
     card = torch.sum(soft + one_hot, dim=(1, 2, 3))
