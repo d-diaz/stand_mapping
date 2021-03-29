@@ -119,8 +119,10 @@ def masked_classification_stats(input, target, nodata=None, num_classes=5):
     # convert input and target with shape (B,N,H,W)
     B, C, H, W = input.shape
     hard_pred = torch.argmax(F.softmax(input, dim=1), axis=1)
-    input_onehot = F.one_hot(hard_pred, num_classes=num_classes).permute(0,3,1,2)
-    targ_onehot = F.one_hot(target[:,0,:,:].clip(0,), num_classes=num_classes).permute(0,3,1,2)
+    input_onehot = F.one_hot(hard_pred,
+                             num_classes=num_classes).permute(0, 3, 1, 2)
+    targ_onehot = F.one_hot(target[:, 0, :, :].clip(0,),
+                            num_classes=num_classes).permute(0, 3, 1, 2)
     valid_pixels = H*W
 
     tp = (input_onehot == targ_onehot) * targ_onehot
@@ -152,7 +154,7 @@ def masked_classification_stats(input, target, nodata=None, num_classes=5):
 
 def masked_dice_coef(input, target, nodata=None, num_classes=5, eps=1e-23):
     """Calculates the Sorensen-Dice Coefficient with the option of including a
-    nodata mask.
+    nodata mask, returning score for each class for each image in a batch.
 
     Parameters
     ----------
@@ -170,15 +172,15 @@ def masked_dice_coef(input, target, nodata=None, num_classes=5, eps=1e-23):
 
     Returns
     -------
-    score : tensor, shape (B,)
-      Dice Coefficient for each image in batch
+    score : tensor, shape (B, C)
+      Dice Coefficient for each class for each image in batch
     """
     # compute softmax over the classes dimension
     soft = F.softmax(input, dim=1)
 
     # convert target to one-hot, then scatter to shape (B,N,H,W)
-    one_hot = F.one_hot(target[:,0,:,:].clip(0,),
-                        num_classes=num_classes).permute(0,3,1,2)
+    one_hot = F.one_hot(target[:, 0, :, :].clip(0,),
+                        num_classes=num_classes).permute(0, 3, 1, 2)
 
     if nodata is not None:
         if nodata.dtype != nodata.bool:
@@ -186,8 +188,8 @@ def masked_dice_coef(input, target, nodata=None, num_classes=5, eps=1e-23):
         soft = soft * ~nodata
         one_hot = one_hot * ~nodata
 
-    inter = torch.sum(soft * one_hot, dim=(1, 2, 3))
-    card = torch.sum(soft + one_hot, dim=(1, 2, 3))
+    inter = torch.sum(soft * one_hot, dim=(2, 3))
+    card = torch.sum(soft + one_hot, dim=(2, 3))
 
     score = 2 * inter / (card + eps)
 
