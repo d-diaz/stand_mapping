@@ -35,7 +35,7 @@ class SemanticDataset(Dataset):
           if True, an additional semantic class will be added to the semantic
           target which indicates whether or not a pixel is a boundary between
           land cover instances.
-        random_seed : int, optional
+        random_state : int, optional
           ...
         """
         super().__init__()
@@ -139,7 +139,7 @@ class SemanticDataset(Dataset):
 class SemanticAndWatershedDataset(SemanticDataset):
     def __init__(self, root, dataframe, raw_chip_size,
                  transform=None, target_transform=None,
-                 use_layers=None, random_seed=None,
+                 use_layers=None, random_state=None,
                  boundary_class=False, clip_watershed=-100):
         """Initialize a Dataset for semantic segmentation and watershed energy
         modeling. Semantic layer includes land cover types plus an optional
@@ -177,7 +177,7 @@ class SemanticAndWatershedDataset(SemanticDataset):
         super().__init__(
             root, dataframe, raw_chip_size,
             transform=transform, target_transform=target_transform,
-            use_layers=use_layers, random_seed=random_seed,
+            use_layers=use_layers, random_state=random_state,
             boundary_class=boundary_class)
 
         self.clip_watershed = clip_watershed
@@ -266,7 +266,7 @@ class SemanticAndWatershedDataset(SemanticDataset):
 class WatershedDataset(SemanticDataset):
     def __init__(self, root, dataframe, raw_chip_size,
                  transform=None, target_transform=None,
-                 use_layers=None, random_seed=None,
+                 use_layers=None, random_state=None,
                  clip_watershed=-100):
         """Initialize a Dataset for watershed energy modeling.
 
@@ -299,7 +299,7 @@ class WatershedDataset(SemanticDataset):
         super().__init__(
             root, dataframe, raw_chip_size,
             transform=transform, target_transform=target_transform,
-            use_layers=use_layers, random_seed=random_seed)
+            use_layers=use_layers, random_state=random_state)
 
         self.clip_watershed = clip_watershed
 
@@ -371,7 +371,7 @@ class WatershedDataset(SemanticDataset):
 class SemanticAndInstanceDataset(SemanticDataset):
     def __init__(self, root, dataframe, raw_chip_size,
                  transform=None, target_transform=None,
-                 use_layers=None, random_seed=None,
+                 use_layers=None, random_state=None,
                  boundary_class=False, thing_classes=None):
         """Initialize a Dataset for semantic segmentation and watershed energy
         modeling. Semantic layer includes land cover types plus an optional
@@ -412,7 +412,7 @@ class SemanticAndInstanceDataset(SemanticDataset):
         super().__init__(
             root, dataframe, raw_chip_size,
             transform=transform, target_transform=target_transform,
-            use_layers=use_layers, random_seed=random_seed,
+            use_layers=use_layers, random_state=random_state,
             boundary_class=boundary_class)
 
         self.thing_classes = {
