@@ -263,6 +263,110 @@ class SemanticAndWatershedDataset(SemanticDataset):
     def __len__(self):
         return len(self.df)
 
+class WatershedDataset(SemanticDataset):
+    def __init__(self, root, dataframe, raw_chip_size,
+                 transform=None, target_transform=None,
+                 use_layers=None, random_seed=None,
+                 clip_watershed=-100):
+        """Initialize a Dataset for watershed energy modeling.
+
+        The watershed energy layer indicates the distance of a pixel from the
+        nearest boundary.
+
+        Parameters
+        ----------
+        root : str
+          path to root of data
+        dataframe : Pandas DataFrame
+          dataframe containing attributes of samples to load
+        raw_chip_size : int
+          height and width of area to read from each input and target layer
+        transform, target_transform : callable, optional
+          a function/transform that takes in the input or target and returns
+          a transformed version.
+        use_layers : dict, optional
+          key, value pairs where each key is a type of input layer and value
+          is whether or not to include this layer in the stack of input layers;
+          each layer requested must have a {layer}_PATH column in the
+          dataframe. If use_layers is not provided, by default only NAIP 4-band
+          imagery will be loaded.
+        clip_watershed : numeric, optional
+          value to clip watershed energy target to. Watershed energy indicates
+          -1 times the distance to the nearest boundary. The default value of
+          -100 means that all pixels further than 100 meters will be treated as
+          if they were only 100 meters away.
+        """
+        super().__init__(
+            root, dataframe, raw_chip_size,
+            transform=transform, target_transform=target_transform,
+            use_layers=use_layers, random_seed=random_seed)
+
+        self.clip_watershed = clip_watershed
+
+    def __getitem__(self, index):
+        """Fetch a sample from the dataset.
+
+        Parameters
+        ----------
+        index : int
+          index of the sample in the dataframe to retrieve data for
+
+        Returns
+        -------
+        input : FloatTensor
+          input image as a FloatTensor
+        watershed : LongTensor
+          watershed energy target
+        nodata : BoolTensor
+          nodata indicates areas that have not been mapped at all
+        """
+        window = None
+        inputs = []
+        for layer_type in self.use_layers:
+            if self.use_layers[layer_type]['use']:
+                col = self.use_layers[layer_type]['col']
+                path = os.path.join(self.root, self.df.iloc[index][col])
+                with rasterio.open(path) as src:
+                    if window is None:
+                        height, width = src.shape
+                        col_off = randint.rvs(0, width - self.raw_chip_size,
+                                              random_state=self.random_state)
+                        row_off = randint.rvs(0, height - self.raw_chip_size,
+                                              random_state=self.random_state)
+                        window = windows.Window(col_off, row_off,
+                                                self.raw_chip_size,
+                                                self.raw_chip_size)
+                    img = src.read(window=window)
+                    inputs.append(img)
+
+        input = np.vstack(inputs)
+        input = torch.FloatTensor(input)
+
+        sem_path = os.path.join(self.root,
+                                self.df.iloc[index]['SEMANTIC_PATH'])
+        with rasterio.open(sem_path) as src:
+            sem = src.read(window=window)
+
+        nodata = torch.BoolTensor(sem == 255)
+
+        watershed_path = os.path.join(self.root,
+                                      self.df.iloc[index]['WATERSHED_PATH'])
+        with rasterio.open(watershed_path) as src:
+            watershed = np.expand_dims(src.read(1, window=window), 0)
+            if self.clip_watershed is not None:
+                watershed = watershed.clip(self.clip_watershed, 0)
+        watershed = torch.LongTensor(watershed)
+
+        if self.transform:
+            input = self.transform(input)
+        if self.target_transform:
+            watershed = self.target_transform(watershed)
+            nodata = self.target_transform(nodata)
+
+        return input, watershed, nodata
+
+    def __len__(self):
+        return len(self.df)
 
 class SemanticAndInstanceDataset(SemanticDataset):
     def __init__(self, root, dataframe, raw_chip_size,
