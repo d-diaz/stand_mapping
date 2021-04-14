@@ -11,7 +11,8 @@ class SemanticDataset(Dataset):
     def __init__(self, root, dataframe, raw_chip_size,
                  transform=None, target_transform=None,
                  use_layers=None, random_state=None,
-                 boundary_class=False):
+                 boundary_class=False, bbox=None,
+                 window_params=None):
         """Initialize a SemanticDataset for semantic segmentation.
 
         Parameters
@@ -36,7 +37,20 @@ class SemanticDataset(Dataset):
           target which indicates whether or not a pixel is a boundary between
           land cover instances.
         random_state : int, optional
-          ...
+          if not set and bbox and window_params are also not set, a random
+          chip will be extracted from the tile. If `random_state` is set
+          and bbox and window_params are not set, will ensure that the same
+          extent is chosen each time.
+        bbox : 4-tuple or list
+          xmin, ymin, xmax, and ymax coordinates to fetch a chip from. Since
+          each tile in the dataset has a different extent, the proper use
+          of `bbox` will be to set this attribute before requesting a chip.
+        window_params : dict
+          key, value pairs indicating the column offset, row offset, width, and
+          height of the chip to return as:
+            {'col_off': ..., 'row_off': ..., 'width': ..., 'height': ...}
+          as with `bbox`, the proper use of window_params is to set this
+          attribute prior to requesting a chip.
         """
         super().__init__()
         self.root = root
@@ -49,6 +63,8 @@ class SemanticDataset(Dataset):
                             self.path_cols]
         self.boundary_class = boundary_class
         self.random_state = random_state
+        self.bbox = bbox
+        self.window_params = window_params
 
         if use_layers is None:
             self.use_layers = {layer_type: {'use': False, 'col': path_col} for
@@ -91,6 +107,14 @@ class SemanticDataset(Dataset):
                 col = self.use_layers[layer_type]['col']
                 path = os.path.join(self.root, self.df.iloc[index][col])
                 with rasterio.open(path) as src:
+                    if self.bbox is not None:
+                        window = windows.from_bounds(*self.bbox,
+                                                     transform=src.transform,
+                                                     width=self.raw_chip_size,
+                                                     height=self.raw_chip_size
+                                                     )
+                    if self.window_params is not None:
+                        window = windows.Window(**self.window_params)
                     if window is None:
                         height, width = src.shape
                         col_off = randint.rvs(0, width - self.raw_chip_size,
@@ -140,7 +164,8 @@ class SemanticAndWatershedDataset(SemanticDataset):
     def __init__(self, root, dataframe, raw_chip_size,
                  transform=None, target_transform=None,
                  use_layers=None, random_state=None,
-                 boundary_class=False, clip_watershed=-100):
+                 boundary_class=False, clip_watershed=-100,
+                 bbox=None, window_params=None):
         """Initialize a Dataset for semantic segmentation and watershed energy
         modeling. Semantic layer includes land cover types plus an optional
         cover type for boundaries between land cover objects/instances. The
@@ -178,7 +203,8 @@ class SemanticAndWatershedDataset(SemanticDataset):
             root, dataframe, raw_chip_size,
             transform=transform, target_transform=target_transform,
             use_layers=use_layers, random_state=random_state,
-            boundary_class=boundary_class)
+            boundary_class=boundary_class,
+            bbox=bbox, window_params=window_params)
 
         self.clip_watershed = clip_watershed
 
@@ -208,6 +234,14 @@ class SemanticAndWatershedDataset(SemanticDataset):
                 col = self.use_layers[layer_type]['col']
                 path = os.path.join(self.root, self.df.iloc[index][col])
                 with rasterio.open(path) as src:
+                    if self.bbox is not None:
+                        window = windows.from_bounds(*self.bbox,
+                                                     transform=src.transform,
+                                                     width=self.raw_chip_size,
+                                                     height=self.raw_chip_size
+                                                     )
+                    if self.window_params is not None:
+                        window = windows.Window(**self.window_params)
                     if window is None:
                         height, width = src.shape
                         col_off = randint.rvs(0, width - self.raw_chip_size,
@@ -267,7 +301,8 @@ class WatershedDataset(SemanticDataset):
     def __init__(self, root, dataframe, raw_chip_size,
                  transform=None, target_transform=None,
                  use_layers=None, random_state=None,
-                 clip_watershed=-100):
+                 clip_watershed=-100, bbox=None,
+                 window_params=None):
         """Initialize a Dataset for watershed energy modeling.
 
         The watershed energy layer indicates the distance of a pixel from the
@@ -299,7 +334,8 @@ class WatershedDataset(SemanticDataset):
         super().__init__(
             root, dataframe, raw_chip_size,
             transform=transform, target_transform=target_transform,
-            use_layers=use_layers, random_state=random_state)
+            use_layers=use_layers, random_state=random_state,
+            bbox=bbox, window_params=window_params)
 
         self.clip_watershed = clip_watershed
 
@@ -327,6 +363,14 @@ class WatershedDataset(SemanticDataset):
                 col = self.use_layers[layer_type]['col']
                 path = os.path.join(self.root, self.df.iloc[index][col])
                 with rasterio.open(path) as src:
+                    if self.bbox is not None:
+                        window = windows.from_bounds(*self.bbox,
+                                                     transform=src.transform,
+                                                     width=self.raw_chip_size,
+                                                     height=self.raw_chip_size
+                                                     )
+                    if self.window_params is not None:
+                        window = windows.Window(**self.window_params)
                     if window is None:
                         height, width = src.shape
                         col_off = randint.rvs(0, width - self.raw_chip_size,
@@ -452,6 +496,14 @@ class SemanticAndInstanceDataset(SemanticDataset):
                 col = self.use_layers[layer_type]['col']
                 path = os.path.join(self.root, self.df.iloc[index][col])
                 with rasterio.open(path) as src:
+                    if self.bbox is not None:
+                        window = windows.from_bounds(*self.bbox,
+                                                     transform=src.transform,
+                                                     width=self.raw_chip_size,
+                                                     height=self.raw_chip_size
+                                                     )
+                    if self.window_params is not None:
+                        window = windows.Window(**self.window_params)
                     if window is None:
                         height, width = src.shape
                         col_off = randint.rvs(0, width - self.raw_chip_size,
