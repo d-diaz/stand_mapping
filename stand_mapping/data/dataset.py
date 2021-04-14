@@ -457,7 +457,8 @@ class SemanticAndInstanceDataset(SemanticDataset):
             root, dataframe, raw_chip_size,
             transform=transform, target_transform=target_transform,
             use_layers=use_layers, random_state=random_state,
-            boundary_class=boundary_class)
+            boundary_class=boundary_class,
+            bbox=bbox, window_params=window_params)
 
         self.thing_classes = {
             'water': False,
